@@ -1,0 +1,28 @@
+.xgplayer.douyin-theater-no-danmaku .danmu,
+.xgplayer.douyin-theater-no-danmaku .danmakuContainer {
+  display: none !important;
+}
+
+.xgplayer:fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #000 !important;
+}
+
+.xgplayer:fullscreen video {
+  object-fit: contain !important;
+}
+
+.xgplayer.douyin-theater-fallback {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+}
+
+body.douyin-theater-fallback-active .videoSideCard {
+  display: none !important;
+}

@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const manifest = JSON.parse(await readFile(new URL('./manifest.json', import.meta.url), 'utf8'));
+const source = await readFile(new URL('./content.js', import.meta.url), 'utf8');
+const styles = await readFile(new URL('./theater.css', import.meta.url), 'utf8');
+const popup = await readFile(new URL('./popup.html', import.meta.url), 'utf8');
+const popupScript = await readFile(new URL('./popup.js', import.meta.url), 'utf8');
+
+assert.equal(manifest.manifest_version, 3);
+assert.deepEqual(manifest.content_scripts[0].matches, ['https://www.douyin.com/*']);
+assert.equal(manifest.action.default_popup, 'popup.html');
+assert.deepEqual(manifest.permissions, ['storage', 'scripting']);
+assert.deepEqual(manifest.host_permissions, ['https://www.douyin.com/*']);
+assert.match(popup, /id="danmaku"[\s\S]*id="clearScreen"[\s\S]*id="quality"[\s\S]*id="continuous"[\s\S]*id="fullscreen"/);
+assert.match(popupScript, /danmaku: true, clearScreen: true, quality: true, continuous: true, fullscreen: true/);
+assert.match(source, /requestFullscreen\(\)/);
+assert.match(source, /scoped.length \? scoped : \[\.\.\.document.querySelectorAll\('\.xgplayer'\)\]/);
+assert.match(source, /immersive-player-switch-on/);
+assert.match(source, /semiTabcompilation_card/);
+assert.match(source, /player\.closest\('#slideMode'\) \|\| player\.closest\('\.slideMode'\)/);
+assert.match(source, /hasCollection: Boolean\(player && collectionTab\(player\)\)/);
+assert.match(source, /xgplayer-playclarity-setting \.item/);
+assert.match(source, /xgplayer-autoplay-setting \.xg-switch/);
+assert.match(source, /exit-mode-v2/);
+assert.match(source, /restoreClear: clearScreen\(player\)/);
+assert.match(popupScript, /chrome\.scripting\.executeScript/);
+assert.match(popupScript, /const connection = await connect\(activeTabId\)/);
+assert.match(popupScript, /尚未找到播放器；可直接点大开关重试/);
+assert.match(popupScript, /setModeState\(result\.modeOn\)/);
+assert.doesNotMatch(popupScript, /请刷新该标签后重试/);
+console.log('扩展清单与追剧流程检查通过');

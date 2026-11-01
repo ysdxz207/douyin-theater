@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>抖音追剧助手</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="panel">
+      <header class="header">
+        <div class="mark" aria-hidden="true"><span></span></div>
+        <div>
+          <h1>抖音追剧助手</h1>
+          <p>把播放页面调成你想要的样子</p>
+        </div>
+      </header>
+
+      <div class="page-status" id="page-status" role="status">
+        <span class="status-dot"></span>
+        <span id="status-text">正在检查当前页面</span>
+      </div>
+
+      <section class="settings" aria-label="播放设置">
+        <label class="setting">
+          <span class="setting-copy"><strong>隐藏弹幕</strong><small>关闭滚动弹幕和发送栏</small></span>
+          <input id="danmaku" type="checkbox">
+          <span class="switch" aria-hidden="true"><span></span></span>
+        </label>
+        <label class="setting">
+          <span class="setting-copy"><strong>清屏</strong><small>启用抖音播放器清屏模式</small></span>
+          <input id="clearScreen" type="checkbox">
+          <span class="switch" aria-hidden="true"><span></span></span>
+        </label>
+        <label class="setting">
+          <span class="setting-copy"><strong>最高画质</strong><small>自动选择当前视频最高可用画质</small></span>
+          <input id="quality" type="checkbox">
+          <span class="switch" aria-hidden="true"><span></span></span>
+        </label>
+        <label class="setting">
+          <span class="setting-copy"><strong>合集连播</strong><small>自动播放合集下一集</small></span>
+          <input id="continuous" type="checkbox">
+          <span class="switch" aria-hidden="true"><span></span></span>
+        </label>
+        <label class="setting">
+          <span class="setting-copy"><strong>全屏播放</strong><small>铺满屏幕，按 Esc 退出</small></span>
+          <input id="fullscreen" type="checkbox">
+          <span class="switch" aria-hidden="true"><span></span></span>
+        </label>
+      </section>
+
+      <button class="apply" id="apply" type="button" data-on="false" disabled>
+        <span class="apply-label">进入追剧模式</span>
+        <span class="apply-switch" data-on="false" aria-hidden="true"><span></span></span>
+      </button>
+      <p class="note">开关默认开启，可按需调整</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
