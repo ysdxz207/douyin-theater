@@ -1,6 +1,8 @@
 (() => {
   let fallbackPlayer = null;
   let modeSession = null;
+  let playerObserver = null;
+  let scopeObserver = null;
 
   function visibleArea(element) {
     const rect = element.getBoundingClientRect();
@@ -109,28 +111,86 @@
     if (option && !option.classList.contains('selected')) option.click();
   }
 
-  function applySettings(settings) {
-    if (modeSession) return { ok: false, error: '追剧模式已开启' };
-    const player = activePlayer();
-    if (!player) return { ok: false, error: '找不到当前播放视频' };
-
+  function playerState(player) {
     const scope = collectionScope(player);
-    modeSession = {
+    return {
       player,
       restoreDanmaku: player.classList.contains('douyin-theater-no-danmaku'),
       restoreClear: clearScreen(player),
       restoreContinuous: continuousEnabled(player),
       restoreQuality: selectedQuality(player),
       restoreTab: scope?.querySelector('[role="tab"][aria-selected="true"]') || null,
+    };
+  }
+
+  function applyPlaybackSettings(player, settings) {
+    player.classList.toggle('douyin-theater-no-danmaku', settings.danmaku);
+    setClearScreen(player, settings.clearScreen);
+    setHighestQuality(player, settings.quality);
+    setContinuous(player, settings.continuous);
+  }
+
+  function observePlayer(player) {
+    playerObserver?.disconnect();
+    playerObserver = new MutationObserver(scheduleModeRefresh);
+    playerObserver.observe(player, {
+      attributes: true,
+      attributeFilter: ['class', 'src'],
+      childList: true,
+      subtree: true,
+    });
+
+    scopeObserver?.disconnect();
+    const scope = collectionScope(player) || player.parentElement;
+    if (scope) {
+      scopeObserver = new MutationObserver(() => {
+        if (modeSession && activePlayer() !== modeSession.player) scheduleModeRefresh();
+      });
+      scopeObserver.observe(scope, { childList: true, subtree: true });
+    }
+  }
+
+  function scheduleModeRefresh() {
+    if (!modeSession || modeSession.refreshTimer) return;
+    modeSession.refreshTimer = setTimeout(() => {
+      if (!modeSession) return;
+      modeSession.refreshTimer = null;
+      const player = activePlayer();
+      if (!player) return;
+
+      if (player !== modeSession.player) {
+        const restoreTab = modeSession.restoreTab;
+        Object.assign(modeSession, playerState(player), { restoreTab });
+        observePlayer(player);
+      }
+      applyPlaybackSettings(player, modeSession.settings);
+    }, 120);
+  }
+
+  function onVideoChange(event) {
+    if (event.target instanceof HTMLVideoElement) scheduleModeRefresh();
+  }
+
+  for (const eventName of ['emptied', 'loadedmetadata', 'loadeddata', 'play']) {
+    document.addEventListener(eventName, onVideoChange, true);
+  }
+
+  function applySettings(settings) {
+    if (modeSession) return { ok: false, error: '追剧模式已开启' };
+    const player = activePlayer();
+    if (!player) return { ok: false, error: '找不到当前播放视频' };
+
+    modeSession = {
+      ...playerState(player),
+      settings: { ...settings },
+      refreshTimer: null,
       fullscreenRequested: settings.fullscreen && document.fullscreenElement !== player,
     };
 
     // Request fullscreen before clicking the collection tab, which can rerender the player.
     if (settings.fullscreen) setFullscreen(player, true);
-    player.classList.toggle('douyin-theater-no-danmaku', settings.danmaku);
-    setClearScreen(player, settings.clearScreen);
-    setHighestQuality(player, settings.quality);
-    setContinuous(player, settings.continuous);
+    applyPlaybackSettings(player, settings);
+    observePlayer(player);
     const collectionFound = selectCollection(player);
     return { ok: true, collectionFound, modeOn: true };
   }
@@ -140,6 +200,9 @@
     const session = modeSession;
     modeSession = null;
     const { player } = session;
+    clearTimeout(session.refreshTimer);
+    playerObserver?.disconnect();
+    scopeObserver?.disconnect();
 
     if (session.fullscreenRequested && document.fullscreenElement === player) document.exitFullscreen();
     setFallback(player, false);
