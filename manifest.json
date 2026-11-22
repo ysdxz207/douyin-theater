@@ -3,7 +3,7 @@
   "name": "抖音追剧助手",
   "version": "1.0.0",
   "description": "在工具栏弹窗中一键调整抖音追剧模式。",
-  "permissions": ["storage", "scripting", "windows"],
+  "permissions": ["storage", "scripting"],
   "host_permissions": ["https://www.douyin.com/*"],
   "action": {
     "default_title": "抖音追剧助手",

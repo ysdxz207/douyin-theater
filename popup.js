@@ -5,9 +5,7 @@ const status = document.getElementById('page-status');
 const statusText = document.getElementById('status-text');
 const applyLabel = document.querySelector('.apply-label');
 const applySwitch = document.querySelector('.apply-switch');
-const WINDOW_STATE_KEY = 'douyinTheaterWindowState';
 let activeTabId;
-let activeWindowId;
 let targetWasActive = false;
 let modeOn = false;
 
@@ -28,37 +26,8 @@ function setModeState(enabled) {
   applyLabel.textContent = enabled ? '退出追剧模式' : '进入追剧模式';
 }
 
-async function enterBrowserFullscreen(windowId) {
-  if (windowId == null) return;
-  const current = await chrome.windows.get(windowId);
-  if (!current || current.state === 'fullscreen') return;
-  await chrome.storage.local.set({
-    [WINDOW_STATE_KEY]: { windowId, state: current.state || 'normal' },
-  });
-  const updated = await chrome.windows.update(windowId, { state: 'fullscreen', focused: true });
-  if (updated?.state !== 'fullscreen') throw new Error('Chrome 未进入窗口全屏');
-}
-
-async function restoreBrowserWindow() {
-  const stored = await chrome.storage.local.get(WINDOW_STATE_KEY);
-  const previous = stored[WINDOW_STATE_KEY];
-  if (!previous?.windowId) return;
-  try {
-    const current = await chrome.windows.get(previous.windowId);
-    if (current?.state === 'fullscreen') {
-      await chrome.windows.update(previous.windowId, { state: previous.state || 'normal' });
-    }
-  } finally {
-    await chrome.storage.local.remove(WINDOW_STATE_KEY);
-  }
-}
-
 async function activateTarget() {
-  if (activeWindowId == null || activeTabId == null) return;
-  const currentWindow = await chrome.windows.getCurrent();
-  if (currentWindow?.id !== activeWindowId) {
-    await chrome.windows.update(activeWindowId, { focused: true });
-  }
+  if (activeTabId == null) return;
   if (!targetWasActive) {
     await chrome.tabs.update(activeTabId, { active: true });
     targetWasActive = true;
@@ -87,7 +56,6 @@ async function initialize() {
   }
 
   activeTabId = target.id;
-  activeWindowId = target.windowId;
   targetWasActive = target.active === true;
   try {
     const result = await connect(activeTabId);
@@ -124,12 +92,10 @@ applyButton.addEventListener('click', async () => {
     let result;
     if (modeOn) {
       result = await chrome.tabs.sendMessage(activeTabId, { type: 'exit-mode-v2' });
-      if (result?.ok) await restoreBrowserWindow();
     } else {
       const settings = Object.fromEntries(Object.entries(controls).map(([key, control]) => [key, control.checked]));
       await chrome.storage.local.set(settings);
       result = await chrome.tabs.sendMessage(activeTabId, { type: 'apply-settings-v2', settings });
-      if (result?.ok && settings.fullscreen) await enterBrowserFullscreen(activeWindowId);
     }
     if (!result?.ok) throw new Error(result?.error || '找不到当前播放视频');
     setModeState(result.modeOn);

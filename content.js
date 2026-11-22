@@ -189,21 +189,40 @@
     document.body.classList.toggle('douyin-theater-fallback-active', enabled);
   }
 
+  function playerFullscreenActive(player) {
+    if (!player) return false;
+    const className = String(player.className || '');
+    return document.fullscreenElement === player ||
+      player.matches?.(':fullscreen') ||
+      player.getAttribute('data-fullscreen') === 'true' ||
+      /(?:^|\s)(?:xgplayer-)?(?:is-)?fullscreen(?:\s|$)/i.test(className);
+  }
+
+  function fullscreenControl(player) {
+    return [...player.querySelectorAll('button, [role="button"], [aria-label], [title], [data-e2e], [class*="fullscreen" i], [class*="full-screen" i]')]
+      .filter(control => visibleArea(control) > 0)
+      .filter(control => /全屏|fullscreen|full-screen/i.test(`${String(control.className || '')} ${labelsOf(control)}`))
+      .sort((a, b) => visibleArea(a) - visibleArea(b))[0] || null;
+  }
+
   function setFullscreen(player, enabled) {
     if (!enabled) {
+      if (playerFullscreenActive(player)) fullscreenControl(player)?.click();
       if (document.fullscreenElement === player) document.exitFullscreen();
       setFallback(player, false);
       return;
     }
 
-    if (document.fullscreenElement === player || fallbackPlayer === player) return;
-    setFallback(player, true);
-    try {
-      if (!player.requestFullscreen) return;
-      player.requestFullscreen().catch(() => {});
-    } catch {
-      // The CSS fallback is already active.
+    if (playerFullscreenActive(player) || fallbackPlayer === player) return;
+    const control = fullscreenControl(player);
+    if (!control) {
+      setFallback(player, true);
+      return;
     }
+    control.click();
+    setTimeout(() => {
+      if (modeSession?.settings.fullscreen && !playerFullscreenActive(player)) setFallback(player, true);
+    }, 180);
   }
 
   function selectedQuality(player) {
@@ -312,7 +331,10 @@
     playerObserver?.disconnect();
     pageObserver?.disconnect();
 
-    if (session.fullscreenRequested && document.fullscreenElement === player) document.exitFullscreen();
+    if (session.fullscreenRequested && playerFullscreenActive(player)) {
+      fullscreenControl(player)?.click();
+      if (document.fullscreenElement === player) document.exitFullscreen();
+    }
     setFallback(player, false);
     player.classList.toggle('douyin-theater-no-danmaku', session.restoreDanmaku);
     setClearScreen(player, session.restoreClear);
@@ -336,10 +358,12 @@
   chrome.runtime.onMessage.addListener(onMessage);
 
   document.addEventListener('fullscreenchange', () => {
-    if (fallbackPlayer && document.fullscreenElement === fallbackPlayer) {
+    if (fallbackPlayer && playerFullscreenActive(fallbackPlayer)) {
       setFallback(fallbackPlayer, false);
     }
-    if (modeSession?.fullscreenRequested && !document.fullscreenElement && !fallbackPlayer) exitMode();
+    if (modeSession?.fullscreenRequested && !playerFullscreenActive(modeSession.player)) {
+      modeSession.fullscreenRequested = false;
+    }
   });
 
   document.addEventListener('keydown', event => {
