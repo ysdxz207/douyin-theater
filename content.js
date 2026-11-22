@@ -36,6 +36,17 @@
     }) || null;
   }
 
+  function dismissBlockingGuide() {
+    const button = [...document.querySelectorAll('button')].find(candidate => {
+      if (textOf(candidate) !== '我知道了') return false;
+      for (let node = candidate, depth = 0; node && depth < 8; node = node.parentElement, depth += 1) {
+        if (/滚动.*查看更多推荐视频|键盘上下键.*切换视频/.test(textOf(node))) return true;
+      }
+      return false;
+    });
+    button?.click();
+  }
+
   function playerRoot(video) {
     for (let node = video?.parentElement, depth = 0; node && depth < 10; node = node.parentElement, depth += 1) {
       const text = textOf(node);
@@ -223,6 +234,7 @@
 
     pageObserver?.disconnect();
     pageObserver = new MutationObserver(() => {
+      dismissBlockingGuide();
       if (modeSession && activePlayer() !== modeSession.player) scheduleModeRefresh();
     });
     if (document.body) {
@@ -258,6 +270,7 @@
 
   function applySettings(settings) {
     if (modeSession) return { ok: false, error: '追剧模式已开启' };
+    dismissBlockingGuide();
     const player = activePlayer();
     if (!player) return { ok: false, error: '找不到当前播放视频' };
 

@@ -17,6 +17,7 @@ assert.match(popupScript, /danmaku: true, clearScreen: true, quality: true, cont
 assert.match(source, /requestFullscreen\(\)/);
 assert.match(source, /function playerRoot\(video\)/);
 assert.match(source, /function playerCandidates\(\)/);
+assert.match(source, /function dismissBlockingGuide\(\)/);
 assert.match(source, /immersive-player-switch-on/);
 assert.match(source, /semiTabcompilation_card/);
 assert.match(source, /player\.closest\('#slideMode, \.slideMode'\)/);
