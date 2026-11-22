@@ -184,12 +184,13 @@
       return;
     }
 
-    if (document.fullscreenElement === player) return;
+    if (document.fullscreenElement === player || fallbackPlayer === player) return;
+    setFallback(player, true);
     try {
-      if (!player.requestFullscreen) return setFallback(player, true);
-      player.requestFullscreen().catch(() => setFallback(player, true));
+      if (!player.requestFullscreen) return;
+      player.requestFullscreen().catch(() => {});
     } catch {
-      setFallback(player, true);
+      // The CSS fallback is already active.
     }
   }
 
@@ -256,6 +257,7 @@
         observePlayer(player);
       }
       applyPlaybackSettings(player, modeSession.settings);
+      if (modeSession.settings.fullscreen) setFullscreen(player, true);
     }, 120);
   }
 
@@ -325,7 +327,7 @@
     if (fallbackPlayer && document.fullscreenElement === fallbackPlayer) {
       setFallback(fallbackPlayer, false);
     }
-    if (modeSession?.fullscreenRequested && !document.fullscreenElement) exitMode();
+    if (modeSession?.fullscreenRequested && !document.fullscreenElement && !fallbackPlayer) exitMode();
   });
 
   document.addEventListener('keydown', event => {
