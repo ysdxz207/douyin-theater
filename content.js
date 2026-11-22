@@ -108,10 +108,18 @@
     const groups = [...player.querySelectorAll('div, ul, ol')]
       .map(group => [...group.children])
       .filter(children => children.length >= 2 && children.length <= 12 &&
-        children.every(item => qualityScore(textOf(item)) >= 0));
+        children.every(item => qualityScore(textOf(item)) >= 0 && visibleArea(item) > 0));
     const semantic = groups.sort((a, b) => b.length - a.length)[0];
     if (semantic) return semantic;
-    return [...player.querySelectorAll('.xgplayer-playclarity-setting .item')];
+    return [...player.querySelectorAll('.xgplayer-playclarity-setting .item')]
+      .filter(item => visibleArea(item) > 0);
+  }
+
+  function qualityControl(player) {
+    const label = [...player.querySelectorAll('*')]
+      .filter(item => /^(智能|高清|超清|蓝光|4K|2K|画质|清晰度)(画质)?$/i.test(textOf(item)) && visibleArea(item) > 0)
+      .sort((a, b) => visibleArea(a) - visibleArea(b))[0];
+    return label?.closest('button, [role="button"], [role="switch"], [aria-checked]') || label || null;
   }
 
   function setHighestQuality(player) {
@@ -121,6 +129,10 @@
         option.item.getAttribute('aria-disabled') !== 'true' &&
         !option.item.disabled &&
         !/登录即享|登录后|不可用/.test(textOf(option.item)));
+    if (!options.length) {
+      qualityControl(player)?.click();
+      return;
+    }
     const highest = options.reduce((best, option) => option.score > (best?.score ?? -1) ? option : best, null);
     if (highest && !highest.item.classList.contains('selected')) highest.item.click();
   }

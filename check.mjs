@@ -24,6 +24,8 @@ assert.match(source, /player\.closest\('#slideMode, \.slideMode'\)/);
 assert.match(source, /data-e2e="slideList"/);
 assert.match(source, /hasCollection: Boolean\(player && \(collectionTab\(player\) \|\| hasCollection\(player\)\)\)/);
 assert.match(source, /xgplayer-playclarity-setting \.item/);
+assert.match(source, /function qualityControl\(player\)/);
+assert.match(source, /qualityControl\(player\)\?\.click\(\)/);
 assert.match(source, /findControl\(player, \/连播\//);
 assert.match(source, /exit-mode-v2/);
 assert.match(source, /restoreClear: clearScreen\(player\)/);
