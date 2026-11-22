@@ -198,30 +198,37 @@
       /(?:^|\s)(?:xgplayer-)?(?:is-)?fullscreen(?:\s|$)/i.test(className);
   }
 
-  function fullscreenControl(player) {
-    return [...player.querySelectorAll('button, [role="button"], [aria-label], [title], [data-e2e], [class*="fullscreen" i], [class*="full-screen" i]')]
-      .filter(control => visibleArea(control) > 0)
-      .filter(control => /全屏|fullscreen|full-screen/i.test(`${String(control.className || '')} ${labelsOf(control)}`))
-      .sort((a, b) => visibleArea(a) - visibleArea(b))[0] || null;
+  function sendFullscreenShortcut(player) {
+    const target = player.querySelector('video') || player;
+    target.focus?.({ preventScroll: true });
+    for (const type of ['keydown', 'keyup']) {
+      target.dispatchEvent(new KeyboardEvent(type, {
+        key: 'h',
+        code: 'KeyH',
+        keyCode: 72,
+        which: 72,
+        bubbles: true,
+        cancelable: true,
+      }));
+    }
   }
 
   function setFullscreen(player, enabled) {
     if (!enabled) {
-      if (playerFullscreenActive(player)) fullscreenControl(player)?.click();
+      if (playerFullscreenActive(player)) sendFullscreenShortcut(player);
       if (document.fullscreenElement === player) document.exitFullscreen();
       setFallback(player, false);
       return;
     }
 
-    if (playerFullscreenActive(player) || fallbackPlayer === player) return;
-    const control = fullscreenControl(player);
-    if (!control) {
-      setFallback(player, true);
-      return;
-    }
-    control.click();
+    if (playerFullscreenActive(player) || fallbackPlayer === player || modeSession?.fullscreenShortcutSent) return;
+    modeSession.fullscreenShortcutSent = true;
+    sendFullscreenShortcut(player);
     setTimeout(() => {
-      if (modeSession?.settings.fullscreen && !playerFullscreenActive(player)) setFallback(player, true);
+      if (modeSession?.settings.fullscreen && !playerFullscreenActive(player)) {
+        modeSession.fullscreenShortcutSent = false;
+        setFallback(player, true);
+      }
     }, 180);
   }
 
@@ -311,6 +318,7 @@
       ...playerState(player),
       settings: { ...settings },
       refreshTimer: null,
+      fullscreenShortcutSent: false,
       fullscreenRequested: settings.fullscreen && document.fullscreenElement !== player,
     };
 
@@ -332,7 +340,7 @@
     pageObserver?.disconnect();
 
     if (session.fullscreenRequested && playerFullscreenActive(player)) {
-      fullscreenControl(player)?.click();
+      sendFullscreenShortcut(player);
       if (document.fullscreenElement === player) document.exitFullscreen();
     }
     setFallback(player, false);
@@ -363,6 +371,7 @@
     }
     if (modeSession?.fullscreenRequested && !playerFullscreenActive(modeSession.player)) {
       modeSession.fullscreenRequested = false;
+      modeSession.fullscreenShortcutSent = false;
     }
   });
 
