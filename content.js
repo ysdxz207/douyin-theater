@@ -237,6 +237,7 @@
 
     if (playerFullscreenActive(player) || fallbackPlayer === player || modeSession?.fullscreenShortcutSent) return;
     modeSession.fullscreenShortcutSent = true;
+    setFallback(player, true);
     requestFullscreenShortcut(player);
     setTimeout(() => {
       if (modeSession?.settings.fullscreen && !playerFullscreenActive(player)) {

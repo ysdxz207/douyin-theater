@@ -14,6 +14,7 @@ assert.deepEqual(manifest.permissions, ['storage', 'scripting']);
 assert.deepEqual(manifest.host_permissions, ['https://www.douyin.com/*']);
 assert.match(styles, /\.douyin-theater-fallback\s*\{/);
 assert.match(styles, /\.douyin-theater-fallback video/);
+assert.match(styles, /sliderVideo:not\(\.douyin-theater-fallback\)/);
 assert.match(popup, /id="danmaku"[\s\S]*id="clearScreen"[\s\S]*id="quality"[\s\S]*id="continuous"[\s\S]*id="fullscreen"/);
 assert.match(popupScript, /danmaku: true, clearScreen: true, quality: true, continuous: true, fullscreen: true/);
 assert.match(source, /function requestFullscreenShortcut\(player\)/);
