@@ -25,20 +25,14 @@
 }
 
 .douyin-theater-fallback video {
-  position: absolute !important;
-  inset: 0 !important;
   display: block !important;
-  width: 100vw !important;
-  height: 100vh !important;
+  width: 100% !important;
+  height: 100% !important;
   object-fit: contain !important;
 }
 
 body.douyin-theater-fallback-active {
   overflow: hidden !important;
-}
-
-body.douyin-theater-fallback-active .sliderVideo:not(.douyin-theater-fallback) {
-  display: none !important;
 }
 
 body.douyin-theater-fallback-active .videoSideCard {
