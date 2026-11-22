@@ -198,8 +198,15 @@
       /(?:^|\s)(?:xgplayer-)?(?:is-)?fullscreen(?:\s|$)/i.test(className);
   }
 
+  function fullscreenControl(player) {
+    return [...player.querySelectorAll('button, [role="button"], [aria-label], [title], [data-e2e], [class*="fullscreen" i], [class*="full-screen" i]')]
+      .filter(control => visibleArea(control) > 0)
+      .filter(control => /全屏|fullscreen|full-screen/i.test(`${String(control.className || '')} ${labelsOf(control)}`))
+      .sort((a, b) => visibleArea(a) - visibleArea(b))[0] || null;
+  }
+
   function sendFullscreenShortcut(player) {
-    const target = player.querySelector('video') || player;
+    const target = player;
     target.focus?.({ preventScroll: true });
     for (const type of ['keydown', 'keyup']) {
       target.dispatchEvent(new KeyboardEvent(type, {
@@ -226,9 +233,14 @@
     sendFullscreenShortcut(player);
     setTimeout(() => {
       if (modeSession?.settings.fullscreen && !playerFullscreenActive(player)) {
-        modeSession.fullscreenShortcutSent = false;
-        setFallback(player, true);
+        fullscreenControl(player)?.click();
       }
+      setTimeout(() => {
+        if (modeSession?.settings.fullscreen && !playerFullscreenActive(player)) {
+          modeSession.fullscreenShortcutSent = false;
+          setFallback(player, true);
+        }
+      }, 180);
     }, 180);
   }
 
@@ -341,6 +353,9 @@
 
     if (session.fullscreenRequested && playerFullscreenActive(player)) {
       sendFullscreenShortcut(player);
+      setTimeout(() => {
+        if (playerFullscreenActive(player)) fullscreenControl(player)?.click();
+      }, 180);
       if (document.fullscreenElement === player) document.exitFullscreen();
     }
     setFallback(player, false);
