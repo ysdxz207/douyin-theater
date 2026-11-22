@@ -2,31 +2,82 @@
   let fallbackPlayer = null;
   let modeSession = null;
   let playerObserver = null;
-  let scopeObserver = null;
+  let pageObserver = null;
 
   function visibleArea(element) {
+    if (!element) return 0;
     const rect = element.getBoundingClientRect();
     const width = Math.max(0, Math.min(rect.right, innerWidth) - Math.max(rect.left, 0));
     const height = Math.max(0, Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0));
     return width * height;
   }
 
+  function textOf(element) {
+    return (element?.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function labelsOf(element) {
+    if (!element) return '';
+    return [
+      element.getAttribute?.('aria-label'),
+      element.getAttribute?.('title'),
+      element.getAttribute?.('data-e2e'),
+      textOf(element),
+    ].filter(Boolean).join(' ');
+  }
+
+  function findControl(root, pattern) {
+    const controls = [...root.querySelectorAll('button, [role="button"], [role="switch"], [aria-checked]')];
+    return controls.find(control => {
+      for (let node = control, depth = 0; node && depth < 4; node = node.parentElement, depth += 1) {
+        if (pattern.test(labelsOf(node))) return true;
+      }
+      return false;
+    }) || null;
+  }
+
+  function playerRoot(video) {
+    for (let node = video?.parentElement, depth = 0; node && depth < 10; node = node.parentElement, depth += 1) {
+      const text = textOf(node);
+      if (/清屏/.test(text) && /连播/.test(text) && node.querySelector('video') === video) return node;
+    }
+    return video?.closest('.xgplayer') || video?.parentElement || null;
+  }
+
+  function playerCandidates() {
+    return [...document.querySelectorAll('video')]
+      .map(video => ({ video, player: playerRoot(video) }))
+      .filter(entry => entry.player);
+  }
+
+  function playerScore(entry) {
+    const { video, player } = entry;
+    const rect = video.getBoundingClientRect();
+    const inViewport = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
+    const playing = !video.paused && video.readyState >= 2;
+    const notWaiting = !/nostart|loading/i.test(String(player.className || ''));
+    const centerDistance = Math.abs((rect.top + rect.bottom) / 2 - innerHeight / 2);
+    return (playing ? 1e12 : 0) + (inViewport ? 1e9 : 0) + (notWaiting ? 1e6 : 0) + visibleArea(video) - centerDistance;
+  }
+
   function activePlayer() {
-    const modal = document.querySelector('#slideMode');
-    const scoped = [...(modal?.querySelectorAll('.xgplayer') || [])];
-    const candidates = scoped.length ? scoped : [...document.querySelectorAll('.xgplayer')];
-    const visible = candidates.filter(player => visibleArea(player) > 0);
-    return (visible.length ? visible : candidates).sort((a, b) => visibleArea(b) - visibleArea(a))[0];
+    const candidates = playerCandidates();
+    if (candidates.length) return candidates.sort((a, b) => playerScore(b) - playerScore(a))[0].player;
+    const fallback = [...document.querySelectorAll('.xgplayer')].filter(player => visibleArea(player) > 0);
+    return fallback.sort((a, b) => visibleArea(b) - visibleArea(a))[0] || null;
   }
 
   function clearScreen(player) {
-    const label = player.querySelector('.xgplayer-immersive-switch-setting .xgTips')?.textContent || '';
-    return player.classList.contains('immersive-player-switch-on') || label.includes('取消清屏');
+    const control = findControl(player, /清屏/);
+    const label = [...player.querySelectorAll('.xgTips')].map(textOf).find(text => text.includes('取消清屏')) || '';
+    return player.classList.contains('immersive-player-switch-on') ||
+      control?.classList.contains('xg-switch-checked') ||
+      label.includes('取消清屏');
   }
 
   function setClearScreen(player, enabled) {
     if (clearScreen(player) !== enabled) {
-      player.querySelector('.xgplayer-immersive-switch-setting button')?.click();
+      findControl(player, /清屏/)?.click();
     }
   }
 
@@ -38,44 +89,75 @@
     if (/超清|蓝光/.test(text)) return 3000;
     if (/高清/.test(text)) return 1080;
     if (/标清/.test(text)) return 540;
+    if (/智能/.test(text)) return 0;
     return -1;
   }
 
+  function qualityOptions(player) {
+    const groups = [...player.querySelectorAll('div, ul, ol')]
+      .map(group => [...group.children])
+      .filter(children => children.length >= 2 && children.length <= 12 &&
+        children.every(item => qualityScore(textOf(item)) >= 0));
+    const semantic = groups.sort((a, b) => b.length - a.length)[0];
+    if (semantic) return semantic;
+    return [...player.querySelectorAll('.xgplayer-playclarity-setting .item')];
+  }
+
   function setHighestQuality(player) {
-    const options = [...player.querySelectorAll('.xgplayer-playclarity-setting .item')]
+    const options = qualityOptions(player)
       .map(item => ({ item, score: qualityScore(item.textContent || '') }))
-      .filter(option => option.score >= 0);
+      .filter(option => option.score >= 0 &&
+        option.item.getAttribute('aria-disabled') !== 'true' &&
+        !option.item.disabled &&
+        !/登录即享|登录后|不可用/.test(textOf(option.item)));
     const highest = options.reduce((best, option) => option.score > (best?.score ?? -1) ? option : best, null);
     if (highest && !highest.item.classList.contains('selected')) highest.item.click();
   }
 
   function continuousEnabled(player) {
-    const setting = player.querySelector('.xgplayer-autoplay-setting');
-    return Boolean(setting?.querySelector('.xg-switch')?.classList.contains('xg-switch-checked')) ||
-      Boolean(setting?.querySelector('.xgTips')?.textContent.includes('关闭自动连播'));
+    const control = findControl(player, /连播/);
+    const tips = [...player.querySelectorAll('.xgTips')].map(textOf);
+    return Boolean(control?.classList.contains('xg-switch-checked')) ||
+      control?.getAttribute('aria-checked') === 'true' ||
+      tips.some(text => text.includes('关闭自动连播'));
   }
 
   function setContinuous(player, enabled) {
     if (continuousEnabled(player) !== enabled) {
-      player.querySelector('.xgplayer-autoplay-setting .xg-switch')?.click();
+      findControl(player, /连播/)?.click();
     }
   }
 
   function collectionScope(player) {
-    return player.closest('#slideMode') || player.closest('.slideMode');
+    const legacy = player.closest('#slideMode, .slideMode');
+    if (legacy) return legacy;
+    const modern = player.closest('[data-e2e="slideList"], #slidelist');
+    if (modern) return modern;
+
+    for (let node = player.parentElement, depth = 0; node && depth < 8; node = node.parentElement, depth += 1) {
+      if (node.querySelectorAll('video').length > 1) return node;
+    }
+    return null;
   }
 
   function collectionTab(player) {
     const scope = collectionScope(player);
     if (!scope) return null;
     return scope.querySelector('#semiTabcompilation_card') ||
-      [...scope.querySelectorAll('[role="tab"]')].find(item => item.textContent.trim() === '合集') || null;
+      [...scope.querySelectorAll('[role="tab"], button, [role="button"], a')]
+        .find(item => /^合集$/.test(textOf(item))) || null;
+  }
+
+  function hasCollection(player) {
+    const scope = collectionScope(player);
+    if (!scope) return false;
+    return /合集/.test(textOf(scope)) && /第\s*\d+\s*集|更新至/.test(textOf(scope));
   }
 
   function selectCollection(player) {
     const tab = collectionTab(player);
     if (tab?.getAttribute('aria-selected') !== 'true') tab?.click();
-    return Boolean(tab);
+    return Boolean(tab || hasCollection(player));
   }
 
   function setFallback(player, enabled) {
@@ -101,13 +183,12 @@
   }
 
   function selectedQuality(player) {
-    return player.querySelector('.xgplayer-playclarity-setting .item.selected')?.textContent.trim() || null;
+    return qualityOptions(player).find(item => item.classList.contains('selected'))?.textContent.trim() || null;
   }
 
   function restoreQuality(player, label) {
     if (!label) return;
-    const option = [...player.querySelectorAll('.xgplayer-playclarity-setting .item')]
-      .find(item => item.textContent.trim() === label);
+    const option = qualityOptions(player).find(item => textOf(item) === label);
     if (option && !option.classList.contains('selected')) option.click();
   }
 
@@ -140,13 +221,12 @@
       subtree: true,
     });
 
-    scopeObserver?.disconnect();
-    const scope = collectionScope(player) || player.parentElement;
-    if (scope) {
-      scopeObserver = new MutationObserver(() => {
-        if (modeSession && activePlayer() !== modeSession.player) scheduleModeRefresh();
-      });
-      scopeObserver.observe(scope, { childList: true, subtree: true });
+    pageObserver?.disconnect();
+    pageObserver = new MutationObserver(() => {
+      if (modeSession && activePlayer() !== modeSession.player) scheduleModeRefresh();
+    });
+    if (document.body) {
+      pageObserver.observe(document.body, { childList: true, subtree: true });
     }
   }
 
@@ -174,6 +254,7 @@
   for (const eventName of ['emptied', 'loadedmetadata', 'loadeddata', 'play']) {
     document.addEventListener(eventName, onVideoChange, true);
   }
+  document.addEventListener('scroll', scheduleModeRefresh, true);
 
   function applySettings(settings) {
     if (modeSession) return { ok: false, error: '追剧模式已开启' };
@@ -202,7 +283,7 @@
     const { player } = session;
     clearTimeout(session.refreshTimer);
     playerObserver?.disconnect();
-    scopeObserver?.disconnect();
+    pageObserver?.disconnect();
 
     if (session.fullscreenRequested && document.fullscreenElement === player) document.exitFullscreen();
     setFallback(player, false);
@@ -219,7 +300,7 @@
   function onMessage(message, _sender, sendResponse) {
     if (message?.type === 'ping') {
       const player = activePlayer();
-      sendResponse({ ok: true, hasPlayer: Boolean(player), hasCollection: Boolean(player && collectionTab(player)), modeOn: Boolean(modeSession) });
+      sendResponse({ ok: true, hasPlayer: Boolean(player), hasCollection: Boolean(player && (collectionTab(player) || hasCollection(player))), modeOn: Boolean(modeSession) });
     }
     if (message?.type === 'apply-settings-v2') sendResponse(applySettings(message.settings));
     if (message?.type === 'exit-mode-v2') sendResponse(exitMode());
