@@ -10,7 +10,7 @@ const popupScript = await readFile(new URL('./popup.js', import.meta.url), 'utf8
 assert.equal(manifest.manifest_version, 3);
 assert.deepEqual(manifest.content_scripts[0].matches, ['https://www.douyin.com/*']);
 assert.equal(manifest.action.default_popup, 'popup.html');
-assert.deepEqual(manifest.permissions, ['storage', 'scripting']);
+assert.deepEqual(manifest.permissions, ['storage', 'scripting', 'windows']);
 assert.deepEqual(manifest.host_permissions, ['https://www.douyin.com/*']);
 assert.match(popup, /id="danmaku"[\s\S]*id="clearScreen"[\s\S]*id="quality"[\s\S]*id="continuous"[\s\S]*id="fullscreen"/);
 assert.match(popupScript, /danmaku: true, clearScreen: true, quality: true, continuous: true, fullscreen: true/);
@@ -31,5 +31,7 @@ assert.match(popupScript, /chrome\.scripting\.executeScript/);
 assert.match(popupScript, /const connection = await connect\(activeTabId\)/);
 assert.match(popupScript, /尚未找到播放器；可直接点大开关重试/);
 assert.match(popupScript, /setModeState\(result\.modeOn\)/);
+assert.match(popupScript, /chrome\.windows\.update/);
+assert.match(popupScript, /douyinTheaterWindowState/);
 assert.doesNotMatch(popupScript, /请刷新该标签后重试/);
 console.log('扩展清单与追剧流程检查通过');
