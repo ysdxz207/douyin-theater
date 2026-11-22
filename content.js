@@ -205,24 +205,15 @@
       .sort((a, b) => visibleArea(a) - visibleArea(b))[0] || null;
   }
 
-  function sendFullscreenShortcut(player) {
-    const target = player;
-    target.focus?.({ preventScroll: true });
-    for (const type of ['keydown', 'keyup']) {
-      target.dispatchEvent(new KeyboardEvent(type, {
-        key: 'h',
-        code: 'KeyH',
-        keyCode: 72,
-        which: 72,
-        bubbles: true,
-        cancelable: true,
-      }));
-    }
+  function requestFullscreenShortcut(player) {
+    chrome.runtime.sendMessage({ type: 'douyin-fullscreen-key' }).then(result => {
+      if (!result?.ok) fullscreenControl(player)?.click();
+    }).catch(() => fullscreenControl(player)?.click());
   }
 
   function setFullscreen(player, enabled) {
     if (!enabled) {
-      if (playerFullscreenActive(player)) sendFullscreenShortcut(player);
+      if (playerFullscreenActive(player)) requestFullscreenShortcut(player);
       if (document.fullscreenElement === player) document.exitFullscreen();
       setFallback(player, false);
       return;
@@ -230,7 +221,7 @@
 
     if (playerFullscreenActive(player) || fallbackPlayer === player || modeSession?.fullscreenShortcutSent) return;
     modeSession.fullscreenShortcutSent = true;
-    sendFullscreenShortcut(player);
+    requestFullscreenShortcut(player);
     setTimeout(() => {
       if (modeSession?.settings.fullscreen && !playerFullscreenActive(player)) {
         fullscreenControl(player)?.click();
@@ -352,7 +343,7 @@
     pageObserver?.disconnect();
 
     if (session.fullscreenRequested && playerFullscreenActive(player)) {
-      sendFullscreenShortcut(player);
+      requestFullscreenShortcut(player);
       setTimeout(() => {
         if (playerFullscreenActive(player)) fullscreenControl(player)?.click();
       }, 180);
