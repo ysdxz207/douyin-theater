@@ -13,7 +13,7 @@
   object-fit: contain !important;
 }
 
-.xgplayer.douyin-theater-fallback {
+.douyin-theater-fallback {
   position: fixed !important;
   inset: 0 !important;
   z-index: 2147483647 !important;
@@ -21,6 +21,13 @@
   height: 100vh !important;
   border-radius: 0 !important;
   background: #000 !important;
+}
+
+.douyin-theater-fallback video {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
 }
 
 body.douyin-theater-fallback-active .videoSideCard {

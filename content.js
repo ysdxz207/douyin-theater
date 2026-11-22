@@ -205,10 +205,26 @@
       .sort((a, b) => visibleArea(a) - visibleArea(b))[0] || null;
   }
 
+  function sendFullscreenShortcut(player) {
+    const target = player;
+    target.focus?.({ preventScroll: true });
+    for (const type of ['keydown', 'keyup']) {
+      target.dispatchEvent(new KeyboardEvent(type, {
+        key: 'h',
+        code: 'KeyH',
+        keyCode: 72,
+        which: 72,
+        bubbles: true,
+        cancelable: true,
+      }));
+    }
+  }
+
   function requestFullscreenShortcut(player) {
-    chrome.runtime.sendMessage({ type: 'douyin-fullscreen-key' }).then(result => {
-      if (!result?.ok) fullscreenControl(player)?.click();
-    }).catch(() => fullscreenControl(player)?.click());
+    sendFullscreenShortcut(player);
+    setTimeout(() => {
+      if (!playerFullscreenActive(player)) fullscreenControl(player)?.click();
+    }, 180);
   }
 
   function setFullscreen(player, enabled) {
